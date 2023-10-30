@@ -4,14 +4,14 @@ import {
   LiveReload,
   Meta, NavLink, Outlet,
   Scripts,
-  ScrollRestoration, useLoaderData, useNavigation,
+  ScrollRestoration, useLoaderData, useNavigate, useNavigation, useSubmit,
 } from "@remix-run/react";
 
 import appStylesHref from './app.css'
 import {ActionFunctionArgs, json, LinksFunction, LoaderFunctionArgs, redirect} from "@remix-run/node";
 
 import {createEmptyContact, getContacts} from './data'
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 
 export const links:LinksFunction = () =>{
   return [
@@ -37,15 +37,16 @@ export default function App() {
 
   const { contacts, q } = useLoaderData<typeof loader>()
   const navigation = useNavigation()
+  const submit = useSubmit()
+
+  const searching =
+      navigation.location &&
+      new URLSearchParams(navigation.location.search).has("q")
+
+  const [query, setQuery] = useState(q || '')
 
   useEffect(() => {
-
-    const qEl = document.getElementById("q")
-    if(qEl instanceof HTMLInputElement) {
-      qEl.value = q || ''
-    }
-
-
+    setQuery(q||'')
   }, [q]);
 
   return (
@@ -59,19 +60,27 @@ export default function App() {
       <body>
         <div id="sidebar">
           <h1>Remix Contacts</h1>
-          <Form role={'test'}>
-          </Form>
           <div>
-            <Form id="search-form" role="search">
+            <Form id="search-form"
+                  onChange={event=> {
+                    const isFirshSearch = q === null;
+                    submit(event.currentTarget, {
+                      replace: !isFirshSearch
+                    })
+                  }}
+                  role="search">
               <input
                 id="q"
-                defaultValue={q || ''}
+                onChange={event=>setQuery(event.currentTarget.value)}
+                value={query}
+                className={searching?'loading':''}
                 aria-label="Search contacts"
                 placeholder="Search"
                 type="search"
                 name="q"
               />
-              <div id="search-spinner" aria-hidden hidden={true} />
+              <div id="search-spinner"
+                   aria-hidden hidden={!searching} />
             </Form>
             <Form method="post">
               <button type="submit">New</button>
@@ -106,7 +115,8 @@ export default function App() {
             )}
           </nav>
         </div>
-        <div id="detail" className={navigation.state === 'loading'? 'loading':''}>
+        <div id="detail"
+             className={navigation.state === 'loading'&&!searching? 'loading':''}>
           <Outlet />
         </div>
         <ScrollRestoration />
